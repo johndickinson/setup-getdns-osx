@@ -83,21 +83,21 @@ EXPAT_CONFIGURE="./configure --prefix=$INSTALL_DIR"
 EXPAT_MAKE_CHECK=""
 EXPAT_SIG="" # I am not aware of a sig for this tarball
 
-OPENSSL_VERSION=1.0.2a
+OPENSSL_VERSION=1.0.2d
 OPENSSL_DIR=openssl-${OPENSSL_VERSION}
 OPENSSL_TAR=${OPENSSL_DIR}.tar.gz
 OPENSSL_URL=http://openssl.org/source/${OPENSSL_TAR}
 OPENSSL_CONFIGURE="./Configure darwin64-x86_64-cc --shared --prefix=$INSTALL_DIR"
 OPENSSL_MAKE_CHECK="make test"
-OPENSSL_SIG="46ecd325b8e587fa491f6bb02ad4a9fb9f382f5f"
+OPENSSL_SIG="d01d17b44663e8ffa6a33a5a30053779d9593c3d"
 
-UNBOUND_VERSION=1.5.3
+UNBOUND_VERSION=1.5.4
 UNBOUND_DIR=unbound-${UNBOUND_VERSION}
 UNBOUND_TAR=${UNBOUND_DIR}.tar.gz
 UNBOUND_URL=http://unbound.nlnetlabs.nl/downloads/${UNBOUND_TAR}
 UNBOUND_CONFIGURE="./configure --prefix=$INSTALL_DIR --with-ssl=$INSTALL_DIR --with-libexpat=$INSTALL_DIR"
 UNBOUND_MAKE_CHECK="make test"
-UNBOUND_SIG="9ae0d8270df4591559d54ee4d61c550526521ca3"
+UNBOUND_SIG="ce0abc1563baa776a0f2c21516ffc13e6bff7d0f"
 
 LIBIDN_VERSION=1.30
 LIBIDN_DIR=libidn-${LIBIDN_VERSION}
@@ -147,13 +147,12 @@ done
 echo
 echo "Now clone your GetDNS repo and build it like this:"
 echo "cd getdns"
+echo "export PATH=$INSTALL_DIR:\$PATH"
 echo "autoreconf --install"
-echo "mkdir build"
-echo "cd build"
-echo "../configure --prefix=$INSTALL_DIR \\"
-echo "             --with-ssl=$INSTALL_DIR \\"
-echo "             --with-libunbound=$INSTALL_DIR \\"
-echo "             --with-libidn=$INSTALL_DIR \\"
-echo "             --with-libldns=$INSTALL_DIR"
+echo "./configure --prefix=$INSTALL_DIR \\"
+echo "            --with-ssl=$INSTALL_DIR \\"
+echo "            --with-libunbound=$INSTALL_DIR \\"
+echo "            --with-libidn=$INSTALL_DIR \\"
+echo "            --with-libldns=$INSTALL_DIR"
 echo "make"
 echo "make install"
