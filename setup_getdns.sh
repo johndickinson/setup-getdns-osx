@@ -2,7 +2,7 @@
 
 set -e
 
-PACKAGES=(AUTOCONF AUTOMAKE LIBTOOL GDB CHECK EXPAT OPENSSL UNBOUND LIBIDN LDNS)
+PACKAGES=(AUTOCONF AUTOMAKE LIBTOOL PKGC CHECK EXPAT OPENSSL UNBOUND LIBIDN GETDNS)
 BUILD_DIR=/tmp
 CURL_CMD="/usr/bin/curl -O"
 RUN_CHECKS=0
@@ -43,7 +43,7 @@ AUTOCONF_CONFIGURE="./configure --prefix=$INSTALL_DIR"
 AUTOCONF_MAKE_CHECK=""
 AUTOCONF_SIG=""
 
-AUTOMAKE_VERSION=1.14
+AUTOMAKE_VERSION=1.15
 AUTOMAKE_DIR=automake-$AUTOMAKE_VERSION
 AUTOMAKE_TAR=$AUTOMAKE_DIR.tar.gz
 AUTOMAKE_URL=" -L http://ftpmirror.gnu.org/automake/automake-${AUTOMAKE_VERSION}.tar.gz"
@@ -51,7 +51,7 @@ AUTOMAKE_CONFIGURE="./configure --prefix=$INSTALL_DIR"
 AUTOMAKE_MAKE_CHECK=""
 AUTOMAKE_SIG=""
 
-LIBTOOL_VERSION=2.4.2
+LIBTOOL_VERSION=2.4.6
 LIBTOOL_DIR=libtool-$LIBTOOL_VERSION
 LIBTOOL_TAR=$LIBTOOL_DIR.tar.gz
 LIBTOOL_URL=" -L http://ftpmirror.gnu.org/libtool/libtool-${LIBTOOL_VERSION}.tar.gz"
@@ -59,18 +59,18 @@ LIBTOOL_CONFIGURE="./configure --prefix=$INSTALL_DIR"
 LIBTOOL_MAKE_CHECK=""
 LIBTOOL_SIG=""
 
-GDB_VERSION=7.9
-GDB_DIR=gdb-$GDB_VERSION
-GDB_TAR=$GDB_DIR.tar.gz
-GDB_URL=" -L http://ftp.gnu.org/gnu/gdb/$GDB_TAR"
-GDB_CONFIGURE="./configure --prefix=$INSTALL_DIR"
-GDB_MAKE_CHECK=""
-GDB_SIG=""
+PKGC_VERSION=0.29.2
+PKGC_DIR=pkg-config-$PKGC_VERSION
+PKGC_TAR=$PKGC_DIR.tar.gz
+PKGC_URL=" -L https://pkg-config.freedesktop.org/releases/pkg-config-${PKGC_VERSION}.tar.gz"
+PKGC_CONFIGURE="./configure --prefix=$INSTALL_DIR --with-internal-glib"
+PKGC_MAKE_CHECK=""
+PKGC_SIG=""
 
-CHECK_VERSION=0.9.14
-CHECK_DIR=check-$CHECK_VERSION
-CHECK_TAR=${CHECK_DIR}.tar.gz
-CHECK_URL=" -L http://downloads.sourceforge.net/project/check/check/${CHECK_VERSION}/check-${CHECK_VERSION}.tar.gz"
+CHECK_VERSION=0.11.0
+CHECK_DIR=$CHECK_VERSION
+CHECK_TAR=${CHECK_DIR}.zip
+CHECK_URL=" -L https://github.com/libcheck/check/archive/${CHECK_VERSION}.zip"
 CHECK_CONFIGURE="./configure --prefix=$INSTALL_DIR"
 CHECK_MAKE_CHECK="" # skip as very slow
 CHECK_SIG="" # I am not aware of a sig for this tarball
@@ -83,23 +83,23 @@ EXPAT_CONFIGURE="./configure --prefix=$INSTALL_DIR"
 EXPAT_MAKE_CHECK=""
 EXPAT_SIG="" # I am not aware of a sig for this tarball
 
-OPENSSL_VERSION=1.0.2d
+OPENSSL_VERSION=1.1.0f
 OPENSSL_DIR=openssl-${OPENSSL_VERSION}
 OPENSSL_TAR=${OPENSSL_DIR}.tar.gz
-OPENSSL_URL=http://openssl.org/source/${OPENSSL_TAR}
+OPENSSL_URL=" -L http://openssl.org/source/${OPENSSL_TAR}"
 OPENSSL_CONFIGURE="./Configure darwin64-x86_64-cc --shared --prefix=$INSTALL_DIR"
 OPENSSL_MAKE_CHECK="make test"
-OPENSSL_SIG="d01d17b44663e8ffa6a33a5a30053779d9593c3d"
+OPENSSL_SIG="9e3e02bc8b4965477a7a1d33be1249299a9deb15"
 
-UNBOUND_VERSION=1.5.4
+UNBOUND_VERSION=1.6.3
 UNBOUND_DIR=unbound-${UNBOUND_VERSION}
 UNBOUND_TAR=${UNBOUND_DIR}.tar.gz
 UNBOUND_URL=http://unbound.nlnetlabs.nl/downloads/${UNBOUND_TAR}
 UNBOUND_CONFIGURE="./configure --prefix=$INSTALL_DIR --with-ssl=$INSTALL_DIR --with-libexpat=$INSTALL_DIR"
 UNBOUND_MAKE_CHECK="make test"
-UNBOUND_SIG="ce0abc1563baa776a0f2c21516ffc13e6bff7d0f"
+UNBOUND_SIG="4477627c31e8728058565f3bae3a12a1544d8a9c"
 
-LIBIDN_VERSION=1.30
+LIBIDN_VERSION=1.33
 LIBIDN_DIR=libidn-${LIBIDN_VERSION}
 LIBIDN_TAR=${LIBIDN_DIR}.tar.gz
 LIBIDN_URL=http://ftp.gnu.org/gnu/libidn/${LIBIDN_TAR}
@@ -107,13 +107,13 @@ LIBIDN_CONFIGURE="./configure --prefix=$INSTALL_DIR"
 LIBIDN_MAKE_CHECK="make check"
 LIBIDN_SIG="" # Uses GPG TODO...
 
-LDNS_VERSION=1.6.17
-LDNS_DIR=ldns-${LDNS_VERSION}
-LDNS_TAR=${LDNS_DIR}.tar.gz
-LDNS_URL=http://nlnetlabs.nl/downloads/ldns/${LDNS_TAR}
-LDNS_CONFIGURE="./configure --prefix=$INSTALL_DIR --with-ssl=$INSTALL_DIR --with-drill"
-LDNS_MAKE_CHECK="" # No tests
-LDNS_SIG="4218897b3c002aadfc7280b3f40cda829e05c9a4"
+GETDNS_VERSION=1.1.1
+GETDNS_DIR=getdns-${GETDNS_VERSION}
+GETDNS_TAR=${GETDNS_DIR}.tar.gz
+GETDNS_URL=" -L https://getdnsapi.net/releases/getdns-1-1-1/${GETDNS_TAR}"
+GETDNS_CONFIGURE="./configure --prefix=$INSTALL_DIR --with-ssl=$INSTALL_DIR --with-libunbound=$INSTALL_DIR --with-libidn=$INSTALL_DIR"
+GETDNS_MAKE_CHECK="make check"
+GETDNS_SIG=""
 
 for PACKAGE in ${PACKAGES[*]} ; do
   cd $BUILD_DIR
@@ -126,7 +126,7 @@ for PACKAGE in ${PACKAGES[*]} ; do
     exit 1
   fi
   eval [ -d \$${PACKAGE}_DIR ] && eval rm -rf \$${PACKAGE}_DIR
-  eval [ ! -e \$${PACKAGE}_TAR ] && eval ${CURL_CMD} -O \$${PACKAGE}_URL
+  eval [ ! -e \$${PACKAGE}_TAR ] && eval ${CURL_CMD} \$${PACKAGE}_URL
   if eval [ -n \"\$${PACKAGE}_SIG\" ] ; then
     eval SIG=\$\(shasum \$${PACKAGE}_TAR \| awk \' { print \$1 } \' \)
     if eval [ x_$SIG != x_\$${PACKAGE}_SIG ] ; then
@@ -134,8 +134,19 @@ for PACKAGE in ${PACKAGES[*]} ; do
       exit 1
     fi
   fi
-  eval tar -xf \$${PACKAGE}_TAR
+  if eval [ -e \$${PACKAGE}_TAR ] ; then
+          if eval [[ "\$${PACKAGE}_TAR" =~ .\*.tar.\* ]] ; then
+                  eval tar -xf \$${PACKAGE}_TAR
+          elif eval [[ \$${PACKAGE}_TAR =~ .\*.zip ]] ; then
+                  eval unzip \$${PACKAGE}_TAR && mv $BUILD_DIR/check-${CHECK_DIR} $BUILD_DIR/${CHECK_DIR}
+          fi
+  fi
   eval cd \$${PACKAGE}_DIR
+  pwd
+  ls -l
+  if [ $PACKAGE == "CHECK" ] && [ ! -x configure ] ; then
+          autoreconf -i
+  fi
   eval \$${PACKAGE}_CONFIGURE
   PMAKE2=$PMAKE
   [ $PACKAGE == "OPENSSL" ] && PMAKE2=1
@@ -144,15 +155,14 @@ for PACKAGE in ${PACKAGES[*]} ; do
   make install -j $PMAKE2
   
 done
-echo
-echo "Now clone your GetDNS repo and build it like this:"
-echo "cd getdns"
-echo "export PATH=$INSTALL_DIR:\$PATH"
-echo "autoreconf --install"
-echo "./configure --prefix=$INSTALL_DIR \\"
-echo "            --with-ssl=$INSTALL_DIR \\"
-echo "            --with-libunbound=$INSTALL_DIR \\"
-echo "            --with-libidn=$INSTALL_DIR \\"
-echo "            --with-libldns=$INSTALL_DIR"
-echo "make"
-echo "make install"
+# echo
+# echo "Now clone your GetDNS repo and build it like this:"
+# echo "cd getdns"
+# echo "export PATH=$INSTALL_DIR:\$PATH"
+# echo "autoreconf --install"
+# echo "./configure --prefix=$INSTALL_DIR \\"
+# echo "            --with-ssl=$INSTALL_DIR \\"
+# echo "            --with-libunbound=$INSTALL_DIR \\"
+# echo "            --with-libidn=$INSTALL_DIR"
+# echo "make"
+# echo "make install"
