@@ -109,9 +109,10 @@ LIBIDN_SIG="" # Uses GPG TODO...
 
 GETDNS_VERSION=1.1.1
 GETDNS_DIR=getdns-${GETDNS_VERSION}
+GETDNS_URL_PATH=${GETDNS_DIR//./-}
 GETDNS_TAR=${GETDNS_DIR}.tar.gz
-GETDNS_URL=" -L https://getdnsapi.net/releases/getdns-1-1-1/${GETDNS_TAR}"
-GETDNS_CONFIGURE="./configure --prefix=$INSTALL_DIR --with-ssl=$INSTALL_DIR --with-libunbound=$INSTALL_DIR --with-libidn=$INSTALL_DIR"
+GETDNS_URL=" -L https://getdnsapi.net/releases/${GETDNS_URL_PATH}/${GETDNS_TAR}"
+GETDNS_CONFIGURE="./configure --prefix=$INSTALL_DIR --with-ssl=$INSTALL_DIR --with-libunbound=$INSTALL_DIR --with-libidn=$INSTALL_DIR --enable-debug-daemon"
 GETDNS_MAKE_CHECK="make check"
 GETDNS_SIG=""
 
@@ -142,8 +143,6 @@ for PACKAGE in ${PACKAGES[*]} ; do
           fi
   fi
   eval cd \$${PACKAGE}_DIR
-  pwd
-  ls -l
   if [ $PACKAGE == "CHECK" ] && [ ! -x configure ] ; then
           autoreconf -i
   fi
@@ -155,14 +154,3 @@ for PACKAGE in ${PACKAGES[*]} ; do
   make install -j $PMAKE2
   
 done
-# echo
-# echo "Now clone your GetDNS repo and build it like this:"
-# echo "cd getdns"
-# echo "export PATH=$INSTALL_DIR:\$PATH"
-# echo "autoreconf --install"
-# echo "./configure --prefix=$INSTALL_DIR \\"
-# echo "            --with-ssl=$INSTALL_DIR \\"
-# echo "            --with-libunbound=$INSTALL_DIR \\"
-# echo "            --with-libidn=$INSTALL_DIR"
-# echo "make"
-# echo "make install"
