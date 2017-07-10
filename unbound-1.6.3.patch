@@ -1,0 +1,69 @@
+Index: daemon/daemon.c
+===================================================================
+--- daemon/daemon.c      (revision 4256)
++++ daemon/daemon.c      (working copy)
+@@ -221,7 +221,9 @@
+ #  ifdef HAVE_ERR_LOAD_CRYPTO_STRINGS
+         ERR_load_crypto_strings();
+ #  endif
++#if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
+         ERR_load_SSL_strings();
++#endif
+ #  ifdef USE_GOST
+         (void)sldns_key_EVP_load_gost_id();
+ #  endif
+@@ -239,7 +241,7 @@
+ #  if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
+         (void)SSL_library_init();
+ #  else
+-        (void)OPENSSL_init_ssl(0, NULL);
++        (void)OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, NULL);
+ #  endif
+ #  if defined(HAVE_SSL) && defined(OPENSSL_THREADS) && !defined(THREADS_DISABLED)
+         if(!ub_openssl_lock_init())
+Index: smallapp/unbound-anchor.c
+===================================================================
+--- smallapp/unbound-anchor.c    (revision 4256)
++++ smallapp/unbound-anchor.c    (working copy)
+@@ -2326,7 +2326,9 @@
+ #ifdef HAVE_ERR_LOAD_CRYPTO_STRINGS
+         ERR_load_crypto_strings();
+ #endif
++#if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
+         ERR_load_SSL_strings();
++#endif
+ #if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_CRYPTO)
+         OpenSSL_add_all_algorithms();
+ #else
+@@ -2337,7 +2339,7 @@
+ #if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
+         (void)SSL_library_init();
+ #else
+-        (void)OPENSSL_init_ssl(0, NULL);
++        (void)OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, NULL);
+ #endif
+
+         if(dolist) do_list_builtin();
+Index: smallapp/unbound-control.c
+===================================================================
+--- smallapp/unbound-control.c   (revision 4256)
++++ smallapp/unbound-control.c   (working copy)
+@@ -763,7 +763,9 @@
+ #ifdef HAVE_ERR_LOAD_CRYPTO_STRINGS
+         ERR_load_crypto_strings();
+ #endif
++#if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
+         ERR_load_SSL_strings();
++#endif
+ #if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_CRYPTO)
+         OpenSSL_add_all_algorithms();
+ #else
+@@ -774,7 +776,7 @@
+ #if OPENSSL_VERSION_NUMBER < 0x10100000 || !defined(HAVE_OPENSSL_INIT_SSL)
+         (void)SSL_library_init();
+ #else
+-        (void)OPENSSL_init_ssl(0, NULL);
++        (void)OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, NULL);
+ #endif
+
+         if(!RAND_status()) {
