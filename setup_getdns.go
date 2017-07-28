@@ -3,8 +3,10 @@ package main
 import (
 	"archive/tar"
 	"archive/zip"
+	"bufio"
 	"compress/gzip"
 	"fmt"
+	"github.com/DHowett/go-plist"
 	"io"
 	"net/http"
 	"os"
@@ -15,6 +17,30 @@ import (
 
 type Key struct {
 	packagename, parameter string
+}
+
+func Runcmd(c string, srcdir string, installdir string, path string, ucc bool) int {
+	fmt.Println(c)
+	if ucc {
+		os.Setenv("PATH", "/usr/local/opt/ccache/libexec:"+installdir+"/bin:"+installdir+"/sbin:"+path)
+	} else {
+		os.Setenv("PATH", installdir+"/bin:"+installdir+"/sbin:"+path)
+	}
+	// fmt.Println(os.Getenv("PATH"))
+	var cmd *exec.Cmd
+	env := os.Environ()
+	cmd = exec.Command("sh", "-c", c)
+	cmd.Dir = srcdir
+	cmd.Env = env
+	stdoutStderr, err := cmd.CombinedOutput()
+	fmt.Printf("%s\n", stdoutStderr)
+	if c != "unbound-anchor" {
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
+		}
+	}
+	return 0
 }
 
 func Unzip(src, dest string) error {
@@ -154,14 +180,8 @@ func downloadball(path string, url string, name string) (err error) {
 }
 
 func main() {
-	builddir := "/tmp/"
-	installdir := "/Users/jad/setup-getdns-osx-test"
-	var stdoutStderr []byte
-	var cmd *exec.Cmd
-	var srcdir string
-	// packagelist := [...]string{"getdns"}
-	packagelist := [...]string{"autoconf", "automake", "libtool", "pkgc", "check", "openssl", "libevent", "unbound", "libidn", "getdns"}
 	packages := make(map[Key]string)
+	installdir := "/Users/jad/setup-getdns-osx-test"
 
 	packages[Key{"autoconf", "VERSION"}] = "2.69"
 	packages[Key{"autoconf", "DIR"}] = "autoconf-" + packages[Key{"autoconf", "VERSION"}]
@@ -170,6 +190,8 @@ func main() {
 	packages[Key{"autoconf", "CONFIGURE"}] = "./configure --prefix=" + installdir
 	packages[Key{"autoconf", "MAKE_CHECK"}] = ""
 	packages[Key{"autoconf", "SIG"}] = ""
+	packages[Key{"autoconf", "MAKE"}] = "make"
+	packages[Key{"autoconf", "CCACHEOK"}] = "OK"
 
 	packages[Key{"automake", "VERSION"}] = "1.15"
 	packages[Key{"automake", "DIR"}] = "automake-" + packages[Key{"automake", "VERSION"}]
@@ -178,6 +200,8 @@ func main() {
 	packages[Key{"automake", "CONFIGURE"}] = "./configure --prefix=" + installdir
 	packages[Key{"automake", "MAKE_CHECK"}] = ""
 	packages[Key{"automake", "SIG"}] = ""
+	packages[Key{"automake", "MAKE"}] = "make"
+	packages[Key{"automake", "CCACHEOK"}] = "OK"
 
 	packages[Key{"libtool", "VERSION"}] = "2.4.6"
 	packages[Key{"libtool", "DIR"}] = "libtool-" + packages[Key{"libtool", "VERSION"}]
@@ -186,6 +210,8 @@ func main() {
 	packages[Key{"libtool", "CONFIGURE"}] = "./configure --prefix=" + installdir
 	packages[Key{"libtool", "MAKE_CHECK"}] = ""
 	packages[Key{"libtool", "SIG"}] = ""
+	packages[Key{"libtool", "MAKE"}] = "make -j8"
+	packages[Key{"libtool", "CCACHEOK"}] = "OK"
 
 	packages[Key{"pkgc", "VERSION"}] = "0.29.2"
 	packages[Key{"pkgc", "DIR"}] = "pkg-config-" + packages[Key{"pkgc", "VERSION"}]
@@ -194,6 +220,8 @@ func main() {
 	packages[Key{"pkgc", "CONFIGURE"}] = "./configure --with-internal-glib --prefix=" + installdir
 	packages[Key{"pkgc", "MAKE_CHECK"}] = ""
 	packages[Key{"pkgc", "SIG"}] = ""
+	packages[Key{"pkgc", "MAKE"}] = "make -j8"
+	packages[Key{"pkgc", "CCACHEOK"}] = "OK"
 
 	packages[Key{"check", "VERSION"}] = "0.11.0"
 	packages[Key{"check", "DIR"}] = packages[Key{"check", "VERSION"}]
@@ -202,6 +230,8 @@ func main() {
 	packages[Key{"check", "CONFIGURE"}] = "autoreconf -i && ./configure --prefix=" + installdir
 	packages[Key{"check", "MAKE_CHECK"}] = ""
 	packages[Key{"check", "SIG"}] = ""
+	packages[Key{"check", "MAKE"}] = "make -j8"
+	packages[Key{"check", "CCACHEOK"}] = "OK"
 
 	packages[Key{"libevent", "VERSION"}] = "2.1.8-stable"
 	packages[Key{"libevent", "DIR"}] = "libevent-" + packages[Key{"libevent", "VERSION"}]
@@ -211,6 +241,8 @@ func main() {
 	packages[Key{"libevent", "CONFIGURE"}] = "./configure --prefix=" + installdir + " CPPFLAGS=-I" + installdir + "/include LDFLAGS=\"-Wl,-headerpad_max_install_names -L" + installdir + "/lib\""
 	packages[Key{"libevent", "TEST"}] = "make check"
 	packages[Key{"libevent", "SIG"}] = ""
+	packages[Key{"libevent", "MAKE"}] = "make -j8"
+	packages[Key{"libevent", "CCACHEOK"}] = "OK"
 
 	packages[Key{"openssl", "VERSION"}] = "1.1.0f"
 	packages[Key{"openssl", "DIR"}] = "openssl-" + packages[Key{"openssl", "VERSION"}]
@@ -219,14 +251,18 @@ func main() {
 	packages[Key{"openssl", "CONFIGURE"}] = "./Configure darwin64-x86_64-cc --shared --prefix=" + installdir + " -Wl,-headerpad_max_install_names"
 	packages[Key{"openssl", "MAKE_CHECK"}] = "make test"
 	packages[Key{"openssl", "SIG"}] = "9e3e02bc8b4965477a7a1d33be1249299a9deb15"
+	packages[Key{"openssl", "MAKE"}] = "make -j8"
+	packages[Key{"openssl", "CCACHEOK"}] = "OK"
 
-	packages[Key{"unbound", "VERSION"}] = "1.6.3"
+	packages[Key{"unbound", "VERSION"}] = "1.6.4"
 	packages[Key{"unbound", "DIR"}] = "unbound-" + packages[Key{"unbound", "VERSION"}]
 	packages[Key{"unbound", "TAR"}] = packages[Key{"unbound", "DIR"}] + ".tar.gz"
 	packages[Key{"unbound", "URL"}] = "http://unbound.nlnetlabs.nl/downloads/" + packages[Key{"unbound", "TAR"}]
 	packages[Key{"unbound", "CONFIGURE"}] = "./configure --prefix=" + installdir + " --with-ssl=" + installdir + " --with-conf-file=. LDFLAGS=-Wl,-headerpad_max_install_names"
 	packages[Key{"unbound", "MAKE_CHECK"}] = "make test"
-	packages[Key{"unbound", "SIG"}] = "4477627c31e8728058565f3bae3a12a1544d8a9c"
+	packages[Key{"unbound", "SIG"}] = "836ecc48518b9159f600a738c276423ef1f95021"
+	packages[Key{"unbound", "MAKE"}] = "make -j8"
+	packages[Key{"unbound", "CCACHEOK"}] = "OK"
 
 	packages[Key{"libidn", "VERSION"}] = "1.33"
 	packages[Key{"libidn", "DIR"}] = "libidn-" + packages[Key{"libidn", "VERSION"}]
@@ -235,6 +271,8 @@ func main() {
 	packages[Key{"libidn", "CONFIGURE"}] = "./configure --prefix=" + installdir + " LDFLAGS=-Wl,-headerpad_max_install_names"
 	packages[Key{"libidn", "MAKE_CHECK"}] = "make check"
 	packages[Key{"libidn", "SIG"}] = ""
+	packages[Key{"libidn", "MAKE"}] = "make"
+	packages[Key{"libidn", "CCACHEOK"}] = "No"
 
 	packages[Key{"getdns", "VERSION"}] = "1.1.1"
 	packages[Key{"getdns", "DIR"}] = "getdns-" + packages[Key{"getdns", "VERSION"}]
@@ -244,8 +282,21 @@ func main() {
 	packages[Key{"getdns", "CONFIGURE"}] = "./configure --prefix=" + installdir + " --with-ssl=" + installdir + " --with-libunbound=" + installdir + " --with-libidn=" + installdir + " --with-libevent --enable-debug-daemon LDFLAGS=-Wl,-headerpad_max_install_names"
 	packages[Key{"getdns", "MAKE_CHECK"}] = "make check"
 	packages[Key{"getdns", "SIG"}] = ""
+	packages[Key{"getdns", "MAKE"}] = "make -j8"
+	packages[Key{"getdns", "CCACHEOK"}] = "OK"
 
-	os.RemoveAll(installdir)
+	builddir := "/tmp/"
+	// apppath := "/Users/jad/StubbyManager.app/Contents/MacOS/"
+	apppath := filepath.Join(builddir, "build-StubbyManager-Desktop_Qt_5_9_1_clang_64bit-Debug/StubbyMAnager.app/Contents/MacOS/")
+	// os.RemoveAll(apppath)
+	// os.MkdirAll(apppath,  0755)
+	stubbymgrdir := filepath.Join(builddir, "/stubby_manager")
+	var srcdir string
+	path := os.Getenv("PATH")
+	// os.RemoveAll(installdir)
+	packagelist := [...]string{"getdns"}
+	// packagelist := [...]string{"autoconf", "automake", "pkgc", "check", "openssl", "libevent", "unbound", "libidn", "getdns"}
+
 	for _, v := range packagelist {
 		fmt.Println("Cleaning: " + v)
 		err := os.RemoveAll(filepath.Join(builddir, packages[Key{v, "DIR"}]))
@@ -254,9 +305,11 @@ func main() {
 		}
 	}
 
-	os.Setenv("PATH", installdir+"/bin:"+installdir+"/sbin:"+os.Getenv("PATH"))
-	env := os.Environ()
 	for _, v := range packagelist {
+		ccacheok := true
+		if packages[Key{v, "CCACHEOK"}] != "OK" {
+			ccacheok = false
+		}
 		if v == "check" {
 			srcdir = builddir + "check-" + packages[Key{v, "DIR"}]
 		} else {
@@ -269,42 +322,97 @@ func main() {
 			fmt.Println("Download and extract failed " + err.Error())
 			os.Exit(1)
 		}
+
 		fmt.Println("Configuring: " + v)
-		// fmt.Println(packages[Key{v, "CONFIGURE"}])
-		cmd = exec.Command("sh", "-c", packages[Key{v, "CONFIGURE"}])
-		cmd.Dir = srcdir
-		cmd.Env = env
-		// fmt.Println(cmd.Env)
-		// fmt.Println("Working directory is: " + cmd.Dir)
-		stdoutStderr, err = cmd.CombinedOutput()
-		fmt.Printf("%s\n", stdoutStderr)
-		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
-		}
+		Runcmd(packages[Key{v, "CONFIGURE"}], srcdir, installdir, path, ccacheok)
 
 		fmt.Println("Making: " + v)
-		cmd = exec.Command("sh", "-c", "make")
-		cmd.Dir = srcdir
-		cmd.Env = env
-		stdoutStderr, err = cmd.CombinedOutput()
-		fmt.Printf("%s\n", stdoutStderr)
-		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
-		}
+		Runcmd(packages[Key{v, "MAKE"}], srcdir, installdir, path, ccacheok)
 
 		fmt.Println("Installing: " + v)
-		cmd = exec.Command("sh", "-c", "make install")
-		cmd.Dir = srcdir
-		cmd.Env = env
-		stdoutStderr, err = cmd.CombinedOutput()
-		fmt.Printf("%s\n", stdoutStderr)
-		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(1)
-		}
+		Runcmd("make install", srcdir, installdir, path, ccacheok)
 
 	}
+	fmt.Println("Now use Qt Creator to build StubbyMAnager.app")
+	fmt.Println("Open " + stubbymgrdir + "StubbyManager.pro. Edit the file configfilemanager.cpp to change the config file locations in lines 7-13")
+	msg := `const QString APPLICATION_PATH = "/Users/jad/StubbyManager.app/Contents/MacOS/";
+  
+const QString CONFIG_FILE_NAME = APPLICATION_PATH + "stubby.conf";
+const QString CONFIG_DEFAULT_FILE_NAME = APPLICATION_PATH + "stubby.conf.default";
+const QString CONFIG_TEMP_FILE_NAME = APPLICATION_PATH + "stubby.temp";
+const QString VALIDATION_TEMP_FILE_NAME = APPLICATION_PATH + "stubby.conf.validation";
 
+const QString VALIDATION_COMMAND = "stubby -C " + APPLICATION_PATH + "stubby.conf.validation -i ";
+
+Then build the Application. In my case this created /tmp/build-StubbyManager-Desktop_Qt_5_9_1_clang_64bit-Debug/StubbyMAnager.app
+Presss return key when done...`
+	fmt.Print(msg)
+	reader := bufio.NewReader(os.Stdin)
+	_, _ = reader.ReadString('\n')
+
+	fmt.Println("Copying files into .app")
+	Runcmd("cp "+installdir+"/bin/stubby "+apppath, srcdir, installdir, path, true)
+	Runcmd("cp "+installdir+"/sbin/unbound-anchor "+apppath, srcdir, installdir, path, true)
+	dylibs := [...]string{"libgetdns.6.dylib", "libunbound.2.dylib", "libidn.11.dylib", "libssl.1.1.dylib", "libcrypto.1.1.dylib", "libidn.11.dylib"}
+	for _, lib := range dylibs {
+		Runcmd("cp "+installdir+"/lib/"+lib+" "+apppath, srcdir, installdir, path, true)
+	}
+	Runcmd("chmod 755 "+apppath+"/libssl.1.1.dylib", srcdir, installdir, path, true)
+	Runcmd("chmod 755 "+apppath+"/libcrypto.1.1.dylib", srcdir, installdir, path, true)
+	for _, lib := range dylibs {
+		Runcmd("install_name_tool -id @executable_path/"+lib+" "+lib, apppath, installdir, path, true)
+	}
+	for _, lib := range dylibs {
+		Runcmd("install_name_tool -change "+installdir+"/lib/"+lib+" @executable_path/"+lib+" "+apppath+"/stubby", apppath, installdir, path, true)
+		Runcmd("install_name_tool -change "+installdir+"/lib/"+lib+" @executable_path/"+lib+" "+apppath+"/unbound-anchor", apppath, installdir, path, true)
+		Runcmd("install_name_tool -change "+installdir+"/lib/"+lib+" @executable_path/"+lib+" "+apppath+"/libgetdns.6.dylib", apppath, installdir, path, true)
+		Runcmd("install_name_tool -change "+installdir+"/lib/"+lib+" @executable_path/"+lib+" "+apppath+"/libunbound.2.dylib", apppath, installdir, path, true)
+		Runcmd("install_name_tool -change "+installdir+"/lib/"+lib+" @executable_path/"+lib+" "+apppath+"/libidn.11.dylib", apppath, installdir, path, true)
+		Runcmd("install_name_tool -change "+installdir+"/lib/"+lib+" @executable_path/"+lib+" "+apppath+"/libssl.1.1.dylib", apppath, installdir, path, true)
+		Runcmd("install_name_tool -change "+installdir+"/lib/"+lib+" @executable_path/"+lib+" "+apppath+"/libcrypto.1.1.dylib", apppath, installdir, path, true)
+		Runcmd("install_name_tool -change "+installdir+"/lib/"+lib+" @executable_path/"+lib+" "+apppath+"/libidn.11.dylib", apppath, installdir, path, true)
+	}
+	Runcmd("unbound-anchor", apppath, installdir, "/bin:"+apppath, true)
+
+	fmt.Println("Clone Stubby Manager")
+	// Runcmd("git clone https://jad@portal.sinodun.com/stash/scm/stubui/stubby_manager.git", builddir, builddir, path, true)
+	Runcmd("git checkout devel", stubbymgrdir, builddir, path, true)
+
+	fmt.Println("Copying conf files from getdns into the .app directory")
+	Runcmd("cp ./getdns-1.1.1/src/tools/stubby.conf "+apppath, builddir, builddir, path, true)
+	Runcmd("cp ./getdns-1.1.1/src/tools/stubby.conf "+apppath+"/stubby.conf.default", builddir, builddir, path, true)
+	Runcmd("cp ./getdns-1.1.1/src/tools/stubby-setdns-macos.sh "+apppath, builddir, builddir, path, true)
+
+	type launchd struct {
+		Label            string `plist:"Label"`
+		KeepAlive        bool
+		ProgramArguments []string `plist:"ProgramArguments"`
+	}
+	data := &launchd{
+		Label:            "org.getdns.stubby",
+		ProgramArguments: []string{"/Applications/StubbyManager.app/Contents/MacOS/stubby"},
+	}
+	plist, err := plist.MarshalIndent(data, plist.XMLFormat, "  ")
+	if err != nil {
+		fmt.Println("Constructing plist failed: " + err.Error())
+		os.Exit(1)
+	}
+	f, err := os.Create(filepath.Join(builddir, "org.getdns.stubby.plist"))
+	if err != nil {
+		fmt.Println("Creating plist file failed: " + err.Error())
+		os.Exit(1)
+	}
+	defer f.Close()
+	f.WriteString(string(plist))
+
+	msg = `Now start Packages (http://s.sudre.free.fr/Software/Packages/about.html)
+Select Raw package. Then set name and path for package
+Add /tmp/build-StubbyManager-Desktop_Qt_5_9_1_clang_64bit-Debug/StubbyMAnager.app to the payload under /Applications
+Add ` + filepath.Join(builddir, "org.getdns.stubby.plist") + ` to the payload under /Library/LaunchDaemons/
+`
+	fmt.Print(msg)
+	// reader = bufio.NewReader(os.Stdin)
+	// _, _ = reader.ReadString('\n')
+
+	os.Exit(0)
 }
