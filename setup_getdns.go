@@ -6,7 +6,6 @@ import (
 	"bufio"
 	"compress/gzip"
 	"fmt"
-	"github.com/DHowett/go-plist"
 	"io"
 	"net/http"
 	"os"
@@ -335,7 +334,7 @@ func main() {
 	}
 	fmt.Println("Now use Qt Creator to build StubbyMAnager.app")
 	fmt.Println("Open " + stubbymgrdir + "StubbyManager.pro. Edit the file configfilemanager.cpp to change the config file locations in lines 7-13")
-	msg := `const QString APPLICATION_PATH = "/Users/jad/StubbyManager.app/Contents/MacOS/";
+	msg := `const QString APPLICATION_PATH = "/Applications/StubbyManager.app/Contents/MacOS/";
   
 const QString CONFIG_FILE_NAME = APPLICATION_PATH + "stubby.conf";
 const QString CONFIG_DEFAULT_FILE_NAME = APPLICATION_PATH + "stubby.conf.default";
@@ -383,27 +382,43 @@ Presss return key when done...`
 	Runcmd("cp ./getdns-1.1.1/src/tools/stubby.conf "+apppath+"/stubby.conf.default", builddir, builddir, path, true)
 	Runcmd("cp ./getdns-1.1.1/src/tools/stubby-setdns-macos.sh "+apppath, builddir, builddir, path, true)
 
-	type launchd struct {
-		Label            string `plist:"Label"`
-		KeepAlive        bool
-		ProgramArguments []string `plist:"ProgramArguments"`
-	}
-	data := &launchd{
-		Label:            "org.getdns.stubby",
-		ProgramArguments: []string{"/Applications/StubbyManager.app/Contents/MacOS/stubby"},
-	}
-	plist, err := plist.MarshalIndent(data, plist.XMLFormat, "  ")
-	if err != nil {
-		fmt.Println("Constructing plist failed: " + err.Error())
-		os.Exit(1)
-	}
+	msg = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>KeepAlive</key>
+        <false/>
+        <key>Label</key>
+        <string>org.getdns.stubby</string>
+        <key>LaunchOnlyOnce</key>
+        <true/>
+        <key>ProgramArguments</key>
+        <array>
+            <string>/Applications/StubbyManager.app/Contents/MacOS/stubby</string>
+            <string>-C</string>
+            <string>/Applications/StubbyManager.app/Contents/MacOS/stubby.conf</string>
+        </array>
+        <key>Sockets</key>
+        <dict>
+            <key>Listeners</key>
+            <dict>
+                <key>SockServiceName</key>
+                <string>53</string>
+                <key>SockType</key>
+                <string>dgram</string>
+                <key>SockFamily</key>
+                <string>IPv4</string>
+            </dict>
+        </dict>
+    </dict>
+</plist>`
 	f, err := os.Create(filepath.Join(builddir, "org.getdns.stubby.plist"))
 	if err != nil {
 		fmt.Println("Creating plist file failed: " + err.Error())
 		os.Exit(1)
 	}
 	defer f.Close()
-	f.WriteString(string(plist))
+	f.WriteString(string(msg))
 
 	msg = `Now start Packages (http://s.sudre.free.fr/Software/Packages/about.html)
 Select Raw package. Then set name and path for package
